@@ -164,6 +164,7 @@ public class NickVRPawn : MonoBehaviour
     }
 
     public static void detachGameObject(GameObject GOToDetach, AttachmentRule locationRule, AttachmentRule rotationRule, AttachmentRule scaleRule){
+        //making the parent null sets its parent to the world origin (meaning relative & global transforms become the same)
         GOToDetach.transform.parent=null;
         handleAttachmentRules(GOToDetach,locationRule,rotationRule,scaleRule);
     }
