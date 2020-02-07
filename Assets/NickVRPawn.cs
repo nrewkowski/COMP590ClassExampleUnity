@@ -41,7 +41,6 @@ public class NickVRPawn : MonoBehaviour
         //I'm doing a bunch of else ifs to make it impossible to hit multiple buttons at once
         if (OVRInput.GetDown(OVRInput.RawButton.LIndexTrigger)){
             outputText.text="Shoot";
-            //we need this to make sure bullets don't spawn every frame
             if (!thingOnGun){
                 Bullet spawnedBullet=Instantiate(definitionOfABullet,leftPointerObject.transform.position,Quaternion.LookRotation(leftPointerObject.transform.up));
                 //you should do a nullity check to make sure it actually has a rigidbody, since in Unity, it's possible for a thing to NOT have physics at all, which is not true for UE4
