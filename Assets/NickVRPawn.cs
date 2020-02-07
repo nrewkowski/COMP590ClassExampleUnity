@@ -42,6 +42,7 @@ public class NickVRPawn : MonoBehaviour
         if (OVRInput.GetDown(OVRInput.RawButton.LIndexTrigger)){
             outputText.text="Shoot";
             if (!thingOnGun){
+                //Quaternion.lookat functions basically the same way as UE4's MakeRotFromX
                 Bullet spawnedBullet=Instantiate(definitionOfABullet,leftPointerObject.transform.position,Quaternion.LookRotation(leftPointerObject.transform.up));
                 //you should do a nullity check to make sure it actually has a rigidbody, since in Unity, it's possible for a thing to NOT have physics at all, which is not true for UE4
                 spawnedBullet.GetComponent<Rigidbody>().AddForce(leftPointerObject.transform.up*100000);
