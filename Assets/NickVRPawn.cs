@@ -15,10 +15,6 @@ public class NickVRPawn : MonoBehaviour
     public GameObject rightPointerObject;
     public TextMesh outputText;
     public TextMesh outputText2;
-    public TextMesh outputText3;
-    //you can also create event handlers like UE4.... but OVRInput makes this somewhat harder so I'm doing it FSM/condition style
-    bool leftTriggerHit=false;
-    bool rightTriggerHit=false;
     //aka a bullet prefab... doesn't yet exist in the scene so I need to provide a template/prefab
     //Since bullet prefab has a Bullet script, I can ID it that way instead of generic prefab
     public Bullet definitionOfABullet;
@@ -125,6 +121,7 @@ public class NickVRPawn : MonoBehaviour
         return closestObjectSoFar;
     }
 
+    //could have more easily just passed in attachment rule.... but I wanted to keep the code similar to the BP example
     void forceGrab(bool pressedA){
         RaycastHit outHit;
         //notice I'm using the layer mask again
