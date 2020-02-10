@@ -15,6 +15,9 @@ public class NickVRPawn : MonoBehaviour
     public GameObject rightPointerObject;
     public TextMesh outputText;
     public TextMesh outputText2;
+    public TextMesh outputText3;
+    //you can also create event handlers like UE4.... but OVRInput makes this somewhat harder so I'm doing it FSM/condition style
+
     //aka a bullet prefab... doesn't yet exist in the scene so I need to provide a template/prefab
     //Since bullet prefab has a Bullet script, I can ID it that way instead of generic prefab
     public Bullet definitionOfABullet;
@@ -25,6 +28,7 @@ public class NickVRPawn : MonoBehaviour
 
     Collectible thingIGrabbed;
 
+    Vector3 previousPointerPos; //using this for velocity since Unity's broken physics engine won't give it to me otherwise
 
     // Update is called once per frame
     void Update()
@@ -45,7 +49,7 @@ public class NickVRPawn : MonoBehaviour
             }
             else{
                 detachGameObject(thingOnGun,AttachmentRule.KeepWorld,AttachmentRule.KeepWorld,AttachmentRule.KeepWorld);
-                simulatePhysics(thingOnGun,true);
+                simulatePhysics(thingOnGun,Vector3.zero,true);
                 thingOnGun.GetComponent<Rigidbody>().AddForce(leftPointerObject.transform.up*1000);
                 thingOnGun=null;
             }
@@ -56,6 +60,7 @@ public class NickVRPawn : MonoBehaviour
         
         //Equivalent to InputAction GoToThere in UE4 version
         else if (OVRInput.GetDown(OVRInput.RawButton.RIndexTrigger)){
+            outputText3.text="Teleport";
             RaycastHit outHit;
             if (Physics.Raycast(rightPointerObject.transform.position, rightPointerObject.transform.up, out outHit, 100.0f))
             {
@@ -70,6 +75,7 @@ public class NickVRPawn : MonoBehaviour
 
         //equivalent to GrabRight in UE4 version (right grip)    
         }else if (OVRInput.GetDown(OVRInput.RawButton.RHandTrigger)){
+            outputText3.text="Grip";
             //In Unity, I can't directly get the overlapping actors of a component. I need to query it manually with Physics.OverlapSphere or OnTriggerEnter
             //I overlap with 1 cm radius to try to get only things near hand
             //this will also return collider for the hand mesh if there is one. I disabled it but keep it in mind. You need to make sure hand is on a different layer
@@ -86,14 +92,17 @@ public class NickVRPawn : MonoBehaviour
         //since you can't merge paths the way I did in BP, I need to create a function that does the force grab thing or else I would duplicate code
         //equivalent to ShootAndGrabNoSnap in UE4 version (A)
         }else if (OVRInput.GetDown(OVRInput.RawButton.A)){
+            outputText3.text="Force Grab at Distance";
             forceGrab(true);
 
         //equivalent to ShootAndGrabSnap in UE4 version (B)
         }else if (OVRInput.GetDown(OVRInput.RawButton.B)){
+            outputText3.text="Force Grab Snap";
             forceGrab(false);
 
         //equivalent to MagneticGrip in UE4 version (RS/R3)
         }else if (OVRInput.GetDown(OVRInput.RawButton.RThumbstick)){
+            outputText3.text="Magnetic Grip";
             Collider[] overlappingThings=Physics.OverlapSphere(rightPointerObject.transform.position,1,collectiblesMask);
             if (overlappingThings.Length>0){
                 Collectible nearestCollectible=getClosestHitObject(overlappingThings);
@@ -102,7 +111,7 @@ public class NickVRPawn : MonoBehaviour
                 thingIGrabbed=nearestCollectible.gameObject.GetComponent<Collectible>();
             }
         }
-
+        previousPointerPos=rightPointerObject.gameObject.transform.position;
     }
 
     Collectible getClosestHitObject(Collider[] hits){
@@ -120,7 +129,6 @@ public class NickVRPawn : MonoBehaviour
         }
         return closestObjectSoFar;
     }
-
     //could have more easily just passed in attachment rule.... but I wanted to keep the code similar to the BP example
     void forceGrab(bool pressedA){
         RaycastHit outHit;
@@ -139,14 +147,14 @@ public class NickVRPawn : MonoBehaviour
             if (overlappingThingsWithLeftHand.Length>0){
                 if (thingOnGun){
                     detachGameObject(thingOnGun,AttachmentRule.KeepWorld,AttachmentRule.KeepWorld,AttachmentRule.KeepWorld);
-                    simulatePhysics(thingOnGun,true);
+                    simulatePhysics(thingOnGun,Vector3.zero,true);
                 }
                 attachGameObjectToAChildGameObject(overlappingThingsWithLeftHand[0].gameObject,leftPointerObject,AttachmentRule.SnapToTarget,AttachmentRule.SnapToTarget,AttachmentRule.KeepWorld,true);
                 thingOnGun=overlappingThingsWithLeftHand[0].gameObject;
                 thingIGrabbed=null;
             }else{
                 detachGameObject(thingIGrabbed.gameObject,AttachmentRule.KeepWorld,AttachmentRule.KeepWorld,AttachmentRule.KeepWorld);
-                simulatePhysics(thingIGrabbed.gameObject,true);
+                simulatePhysics(thingIGrabbed.gameObject,(rightPointerObject.gameObject.transform.position-previousPointerPos)/Time.deltaTime,true);
                 thingIGrabbed=null;
             }
         }
@@ -155,11 +163,11 @@ public class NickVRPawn : MonoBehaviour
     //since Unity doesn't have sceneComponents like UE4, we can only attach GOs to other GOs which are children of another GO
     //e.g. attach collectible to controller GO, which is a child of VRRoot GO
     //imagine if scenecomponents in UE4 were all split into distinct GOs in Unity
-    public static void attachGameObjectToAChildGameObject(GameObject GOToAttach, GameObject newParent, AttachmentRule locationRule, AttachmentRule rotationRule, AttachmentRule scaleRule, bool weld){
+    public void attachGameObjectToAChildGameObject(GameObject GOToAttach, GameObject newParent, AttachmentRule locationRule, AttachmentRule rotationRule, AttachmentRule scaleRule, bool weld){
         GOToAttach.transform.parent=newParent.transform;
         handleAttachmentRules(GOToAttach,locationRule,rotationRule,scaleRule);
         if (weld){
-            simulatePhysics(GOToAttach,false);
+            simulatePhysics(GOToAttach,Vector3.zero,false);
         }
     }
 
@@ -190,21 +198,19 @@ public class NickVRPawn : MonoBehaviour
         new Vector3(1,1,1);
     }
 
-    public static void simulatePhysics(GameObject target,bool simulate){
+    public void simulatePhysics(GameObject target,Vector3 oldParentVelocity,bool simulate){
         Rigidbody rb=target.GetComponent<Rigidbody>();
         if (rb){
             if (!simulate){
-                //forums will recommend setting isKinematic to false. The problem with this is that even if you disable gravity, hitting other physics bodies will cause strange 
-                //floaty physics. try it yourself to verify. I couldn't find a better way to replicate my UE4 code than to do it this way, but maybe you'll find a better strategy
                 Destroy(rb);
-            }
+            } 
         } else{
             if (simulate){
                 //there's actually a problem here relative to the UE4 version since Unity doesn't have this simple "simulate physics" option
                 //The object will NOT preserve momentum when you throw it like in UE4.
-                //What you can do is make a kinematic rigidbody on the controller and use its own velocity to set the new rigidbody's velocity.
-                //I didn't do it here because it's a Unity-specific thing, but feel free to do this yourself as an exercise
-                target.AddComponent<Rigidbody>();
+                //need to set its velocity itself.... even if you switch the kinematic/gravity settings around instead of deleting/adding rb
+                Rigidbody newRB=target.AddComponent<Rigidbody>();
+                newRB.velocity=oldParentVelocity;
             }
         }
     }
